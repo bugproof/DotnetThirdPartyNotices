@@ -1,8 +1,8 @@
-[![NuGet](https://img.shields.io/nuget/v/dotnet-thirdpartynotices.svg)](https://www.nuget.org/packages/dotnet-thirdpartynotices/)
-
 ![Icon](https://i.imgur.com/WcnEL2Y.png)
 
-## dotnet-thirdpartynotices
+# dotnet-thirdpartynotices
+
+[![NuGet](https://img.shields.io/nuget/v/dotnet-thirdpartynotices.svg)](https://www.nuget.org/packages/dotnet-thirdpartynotices/)
 
 ## Example of a generated file
 
