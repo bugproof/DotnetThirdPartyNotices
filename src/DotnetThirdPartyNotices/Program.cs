@@ -92,10 +92,13 @@ namespace DotnetThirdPartyNotices
                     stringBuilder.AppendLine();
                 }
 
-                Console.WriteLine($"Writing to {outputFilename}...");
-                await File.WriteAllTextAsync(outputFilename, stringBuilder.ToString());
+                if (stringBuilder.Length > 0)
+                {
+                    Console.WriteLine($"Writing to {outputFilename}...");
+                    await File.WriteAllTextAsync(outputFilename, stringBuilder.ToString());
 
-                Console.WriteLine("Done.");
+                    Console.WriteLine("Done.");
+                }
             });
 
             app.Execute(args);
@@ -110,7 +113,6 @@ namespace DotnetThirdPartyNotices
 
                 var process = Process.Start(new ProcessStartInfo("dotnet", "--list-sdks")
                     {RedirectStandardOutput = true});
-                Debug.Assert(process != null, nameof(process) + " != null");
                 process.WaitForExit(1000);
 
                 var output = process.StandardOutput.ReadToEnd();
