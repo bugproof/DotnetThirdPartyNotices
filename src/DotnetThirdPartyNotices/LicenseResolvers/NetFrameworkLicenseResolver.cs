@@ -22,7 +22,7 @@ namespace DotnetThirdPartyNotices.LicenseResolvers
                 return _licenseContent;
 
             var executingAssembly = Assembly.GetExecutingAssembly();
-            using (var stream = executingAssembly.GetManifestResourceStream(typeof(NetFrameworkLicenseResolver), "dotnet_library_license.txt"))
+            using (var stream = executingAssembly.GetManifestResourceStream(typeof(Program), "dotnet_library_license.txt"))
             using (var streamReader = new StreamReader(stream))
             {
                 _licenseContent = await streamReader.ReadToEndAsync();
