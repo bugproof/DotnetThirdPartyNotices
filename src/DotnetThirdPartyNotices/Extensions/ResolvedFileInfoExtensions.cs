@@ -11,17 +11,22 @@ namespace DotnetThirdPartyNotices.Extensions
 {
     internal static class ResolvedFileInfoExtensions
     {
+        // Create instances only once
+        private static readonly Lazy<List<ILicenseResolver>> LicenseResolvers =
+            new Lazy<List<ILicenseResolver>>(() =>
+                GetInstancesFromExecutingAssembly<ILicenseResolver>().ToList());
+
         private static readonly Lazy<List<ILicenseUriLicenseResolver>> LicenseUriLicenseResolvers =
             new Lazy<List<ILicenseUriLicenseResolver>>(() =>
-                GetInstancesFromExecutingAssembly<ILicenseUriLicenseResolver>().ToList());
+                LicenseResolvers.Value.OfType<ILicenseUriLicenseResolver>().ToList());
 
         private static readonly Lazy<List<IProjectUriLicenseResolver>> ProjectUriLicenseResolvers =
             new Lazy<List<IProjectUriLicenseResolver>>(() =>
-                GetInstancesFromExecutingAssembly<IProjectUriLicenseResolver>().ToList());
+                LicenseResolvers.Value.OfType<IProjectUriLicenseResolver>().ToList());
 
         private static readonly Lazy<List<IFileVersionInfoLicenseResolver>> FileVersionInfoLicenseResolvers =
             new Lazy<List<IFileVersionInfoLicenseResolver>>(() =>
-                GetInstancesFromExecutingAssembly<IFileVersionInfoLicenseResolver>().ToList());
+                LicenseResolvers.Value.OfType<IFileVersionInfoLicenseResolver>().ToList());
 
         private static IEnumerable<T> GetInstancesFromExecutingAssembly<T>() where T : class
         {
@@ -30,20 +35,20 @@ namespace DotnetThirdPartyNotices.Extensions
 
         private static bool TryFindLicenseUriLicenseResolver(Uri licenseUri, out ILicenseUriLicenseResolver resolver)
         {
-            resolver = LicenseUriLicenseResolvers.Value.Find(r => r.CanResolve(licenseUri));
+            resolver = LicenseUriLicenseResolvers.Value.FirstOrDefault(r => r.CanResolve(licenseUri));
             return resolver != null;
         }
 
         private static bool TryFindProjectUriLicenseResolver(Uri projectUri, out IProjectUriLicenseResolver resolver)
         {
-            resolver = ProjectUriLicenseResolvers.Value.Find(r => r.CanResolve(projectUri));
+            resolver = ProjectUriLicenseResolvers.Value.FirstOrDefault(r => r.CanResolve(projectUri));
             return resolver != null;
         }
 
         private static bool TryFindFileVersionInfoLicenseResolver(
             FileVersionInfo fileVersionInfo, out IFileVersionInfoLicenseResolver resolver)
         {
-            resolver = FileVersionInfoLicenseResolvers.Value.Find(r => r.CanResolve(fileVersionInfo));
+            resolver = FileVersionInfoLicenseResolvers.Value.FirstOrDefault(r => r.CanResolve(fileVersionInfo));
             return resolver != null;
         }
 
@@ -56,7 +61,7 @@ namespace DotnetThirdPartyNotices.Extensions
 
             return license ?? await ResolveLicenseFromFileVersionInfo(resolvedFileInfo.VersionInfo);
         }
-        
+
         private static async Task<string> ResolveLicense(NuSpec nuSpec)
         {
             // Try to get the license from license url
@@ -102,12 +107,12 @@ namespace DotnetThirdPartyNotices.Extensions
             return null;
         }
 
-        private static Task<string> ResolveLicenseFromFileVersionInfo(FileVersionInfo fileVersionInfo)
+        private static async Task<string> ResolveLicenseFromFileVersionInfo(FileVersionInfo fileVersionInfo)
         {
             if (!TryFindFileVersionInfoLicenseResolver(fileVersionInfo, out var fileVersionInfoLicenseResolver))
                 return null;
 
-            return fileVersionInfoLicenseResolver.Resolve(fileVersionInfo);
+            return await fileVersionInfoLicenseResolver.Resolve(fileVersionInfo);
         }
     }
 }
