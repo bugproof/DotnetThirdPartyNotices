@@ -62,22 +62,37 @@ namespace DotnetThirdPartyNotices.Extensions
             return license ?? await ResolveLicenseFromFileVersionInfo(resolvedFileInfo.VersionInfo);
         }
 
+        private static readonly Dictionary<Uri, string> LicenseCache = new Dictionary<Uri, string>();
+
         private static async Task<string> ResolveLicense(NuSpec nuSpec)
         {
             // Try to get the license from license url
             if (!string.IsNullOrEmpty(nuSpec.LicenseUrl))
             {
                 var licenseUri = new Uri(nuSpec.LicenseUrl);
+                if (LicenseCache.ContainsKey(licenseUri))
+                    return LicenseCache[licenseUri];
+
                 var license = await ResolveLicenseFromLicenseUri(licenseUri);
                 if (license != null)
+                {
+                    LicenseCache[licenseUri] = license;
                     return license;
+                }
             }
 
             // Otherwise try to get the license from project url
             if (string.IsNullOrEmpty(nuSpec.ProjectUrl)) return null;
 
             var projectUri = new Uri(nuSpec.ProjectUrl);
-            return await ResolveLicenseFromProjectUri(projectUri);
+            if (LicenseCache.ContainsKey(projectUri))
+                return LicenseCache[projectUri];
+
+            var license2 = await ResolveLicenseFromProjectUri(projectUri);
+            if (license2 == null) return null;
+
+            LicenseCache[projectUri] = license2;
+            return license2;
         }
 
         private static async Task<string> ResolveLicenseFromLicenseUri(Uri licenseUri)
