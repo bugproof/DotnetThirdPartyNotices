@@ -1,6 +1,8 @@
-# dotnet-thirdpartynotices
-
 [![NuGet](https://img.shields.io/nuget/v/dotnet-thirdpartynotices.svg)](https://www.nuget.org/packages/dotnet-thirdpartynotices/)
+
+![Icon](https://i.imgur.com/WcnEL2Y.png)
+
+## dotnet-thirdpartynotices
 
 ## Example of a generated file
 
@@ -56,3 +58,7 @@ If `.nuspec` cannot be found it tries to guess the license using `FileVersionInf
 ## Notice
 
 This tool is still experimental and might not work with certain projects. There might be some crashes but hopefully they'll be fixed soon.
+
+## Icon
+
+legal by Setyo Ari Wibowo from the Noun Project
