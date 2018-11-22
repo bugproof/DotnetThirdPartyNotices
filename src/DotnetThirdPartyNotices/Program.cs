@@ -43,10 +43,16 @@ namespace DotnetThirdPartyNotices
 
                 Console.WriteLine("Resolving files...");
 
+                var stopwatch = new Stopwatch();
+
+                stopwatch.Start();
+
                 var licenseContents = new Dictionary<string, List<ResolvedFileInfo>>();
                 var resolvedFiles = project.ResolveFiles().ToList();
 
                 Console.WriteLine($"Resolved files count: {resolvedFiles.Count}");
+
+                var unresolvedFiles = new List<ResolvedFileInfo>();
 
                 foreach (var resolvedFileInfo in resolvedFiles)
                 {
@@ -58,8 +64,11 @@ namespace DotnetThirdPartyNotices
                     var licenseContent = await resolvedFileInfo.ResolveLicense();
                     if (licenseContent == null)
                     {
+                        unresolvedFiles.Add(resolvedFileInfo);
+                        Console.ForegroundColor = ConsoleColor.DarkRed;
                         Console.WriteLine(
                             $"No license found for {resolvedFileInfo.RelativeOutputPath}. Source path: {resolvedFileInfo.SourcePath}. Verify this manually.");
+                        Console.ResetColor();
                         continue;
                     }
 
@@ -68,6 +77,15 @@ namespace DotnetThirdPartyNotices
 
                     licenseContents[licenseContent].Add(resolvedFileInfo);
                 }
+
+
+                stopwatch.Stop();
+                
+                
+                Console.WriteLine($"Resolved {licenseContents.Count} licenses for {licenseContents.Values.Sum(v => v.Count)}/{resolvedFiles.Count} files in {stopwatch.ElapsedMilliseconds}ms");
+                Console.WriteLine($"Unresolved files: {unresolvedFiles.Count}");
+
+                stopwatch.Start();
 
                 var stringBuilder = new StringBuilder();
 
@@ -92,12 +110,14 @@ namespace DotnetThirdPartyNotices
                     stringBuilder.AppendLine();
                 }
 
+                stopwatch.Stop();
+
                 if (stringBuilder.Length > 0)
                 {
                     Console.WriteLine($"Writing to {outputFilename}...");
                     await File.WriteAllTextAsync(outputFilename, stringBuilder.ToString());
 
-                    Console.WriteLine("Done.");
+                    Console.WriteLine($"Done in {stopwatch.ElapsedMilliseconds}ms");
                 }
             });
 
