@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using DotnetThirdPartyNotices.Extensions;
 using DotnetThirdPartyNotices.Models;
 using McMaster.Extensions.CommandLineUtils;
-using Microsoft.Build.Definition;
 using Microsoft.Build.Evaluation;
+using Microsoft.Build.Locator;
+
 
 namespace DotnetThirdPartyNotices
 {
@@ -22,11 +22,11 @@ namespace DotnetThirdPartyNotices
             app.HelpOption();
             var optionOutputFilename = app.Option<string>("--output-filename <FILENAME>", "Output filename (default: third-party-notices.txt)",
                 CommandOptionType.SingleValue);
-            
+
+            MSBuildLocator.RegisterDefaults();
+
             app.OnExecute(async () =>
             {
-                SetMsBuildExePath();
-
                 var scanDirectory = app.RemainingArguments.SingleOrDefault() ?? Directory.GetCurrentDirectory();
                 var outputFilename = optionOutputFilename.ParsedValue ?? "third-party-notices.txt";
 
@@ -38,7 +38,7 @@ namespace DotnetThirdPartyNotices
                     return;
                 }
 
-                var project = Project.FromFile(projectFilePath, new ProjectOptions());
+                var project = new Project(projectFilePath);
                 project.SetProperty("DesignTimeBuild", "true");
 
                 Console.WriteLine("Resolving files...");
@@ -122,30 +122,6 @@ namespace DotnetThirdPartyNotices
             });
 
             app.Execute(args);
-        }
-
-        // Thanks to Rico Suter: https://blog.rsuter.com/missing-sdk-when-using-the-microsoft-build-package-in-net-core/
-        private static void SetMsBuildExePath()
-        {
-            try
-            {
-                // See https://github.com/Microsoft/msbuild/issues/2532#issuecomment-381096259
-
-                var process = Process.Start(new ProcessStartInfo("dotnet", "--list-sdks")
-                    {RedirectStandardOutput = true});
-                process.WaitForExit(1000);
-
-                var output = process.StandardOutput.ReadToEnd();
-                var sdkPaths = Regex.Matches(output, "([0-9]+.[0-9]+.[0-9]+) \\[(.*)\\]")
-                    .Select(m => Path.Combine(m.Groups[2].Value, m.Groups[1].Value, "MSBuild.dll"));
-
-                var sdkPath = sdkPaths.Last();
-                Environment.SetEnvironmentVariable("MSBUILD_EXE_PATH", sdkPath);
-            }
-            catch (Exception exception)
-            {
-                Console.Write("Could not set MSBUILD_EXE_PATH: " + exception + "\n\n");
-            }
         }
     }
 }
