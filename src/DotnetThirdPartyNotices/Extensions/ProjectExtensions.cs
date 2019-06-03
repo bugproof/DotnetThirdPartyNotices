@@ -19,7 +19,6 @@ namespace DotnetThirdPartyNotices.Extensions
             if (targetFrameworksProperty != null)
             {
                 var targetFrameworks = targetFrameworksProperty.EvaluatedValue.Split(';');
-                project.RemoveProperty(targetFrameworksProperty);
                 project.SetProperty("TargetFramework", targetFrameworks[0]);
             }
 
