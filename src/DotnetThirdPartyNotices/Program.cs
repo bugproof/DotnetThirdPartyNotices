@@ -10,6 +10,8 @@ using DotnetThirdPartyNotices.Extensions;
 using DotnetThirdPartyNotices.Models;
 using Microsoft.Build.Definition;
 using Microsoft.Build.Evaluation;
+using Microsoft.Build.Locator;
+
 
 namespace DotnetThirdPartyNotices
 {
@@ -22,7 +24,7 @@ namespace DotnetThirdPartyNotices
         /// <param name="argument">Path of the directory to look for projects (optional)</param>
         private static async Task Main(string outputFilename = "third-party-notices.txt", string argument = null)
         {
-            SetMsBuildExePath();
+            MSBuildLocator.RegisterDefaults();
 
             var scanDirectory = argument ?? Directory.GetCurrentDirectory();
 
@@ -34,9 +36,8 @@ namespace DotnetThirdPartyNotices
                 return;
             }
 
-            var project = Project.FromFile(projectFilePath, new ProjectOptions());
+            var project = new Project(projectFilePath);
             project.SetProperty("DesignTimeBuild", "true");
-
             Console.WriteLine("Resolving files...");
 
             var stopwatch = new Stopwatch();
@@ -109,30 +110,6 @@ namespace DotnetThirdPartyNotices
                 await File.WriteAllTextAsync(outputFilename, stringBuilder.ToString());
 
                 Console.WriteLine($"Done in {stopwatch.ElapsedMilliseconds}ms");
-            }
-        }
-
-        // Thanks to Rico Suter: https://blog.rsuter.com/missing-sdk-when-using-the-microsoft-build-package-in-net-core/
-        private static void SetMsBuildExePath()
-        {
-            try
-            {
-                // See https://github.com/Microsoft/msbuild/issues/2532#issuecomment-381096259
-
-                var process = Process.Start(new ProcessStartInfo("dotnet", "--list-sdks")
-                    {RedirectStandardOutput = true});
-                process.WaitForExit(1000);
-
-                var output = process.StandardOutput.ReadToEnd();
-                var sdkPaths = Regex.Matches(output, "([0-9]+.[0-9]+.[0-9]+) \\[(.*)\\]")
-                    .Select(m => Path.Combine(m.Groups[2].Value, m.Groups[1].Value, "MSBuild.dll")).ToList();
-
-                var sdkPath = sdkPaths.Last();
-                Environment.SetEnvironmentVariable("MSBUILD_EXE_PATH", sdkPath);
-            }
-            catch (Exception exception)
-            {
-                Console.Write("Could not set MSBUILD_EXE_PATH: " + exception + "\n\n");
             }
         }
     }
