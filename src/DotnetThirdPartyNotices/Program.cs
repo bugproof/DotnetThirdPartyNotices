@@ -1,16 +1,14 @@
-﻿using System;
+﻿using DotnetThirdPartyNotices.Extensions;
+using DotnetThirdPartyNotices.Models;
+using Microsoft.Build.Evaluation;
+using Microsoft.Build.Locator;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using DotnetThirdPartyNotices.Extensions;
-using DotnetThirdPartyNotices.Models;
-using Microsoft.Build.Definition;
-using Microsoft.Build.Evaluation;
-using Microsoft.Build.Locator;
 
 
 namespace DotnetThirdPartyNotices
@@ -25,6 +23,12 @@ namespace DotnetThirdPartyNotices
         private static async Task Main(string outputFilename = "third-party-notices.txt", string argument = null)
         {
             MSBuildLocator.RegisterDefaults();
+
+            await Run(outputFilename, argument);
+        }
+
+        private static async Task Run(string outputFilename, string argument)
+        {
 
             var scanDirectory = argument ?? Directory.GetCurrentDirectory();
 
