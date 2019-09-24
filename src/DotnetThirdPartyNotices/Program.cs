@@ -4,9 +4,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using DotnetThirdPartyNotices.Extensions;
 using DotnetThirdPartyNotices.Models;
-using McMaster.Extensions.CommandLineUtils;
+using Microsoft.Build.Definition;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Locator;
 
@@ -15,113 +17,100 @@ namespace DotnetThirdPartyNotices
 {
     internal static class Program
     {
-        private static void Main(string[] args)
+        /// <summary>
+        /// A tool to generate file with third party legal notices for .NET projects
+        /// </summary>
+        /// <param name="outputFilename">Output filename (default: third-party-notices.txt)</param>
+        /// <param name="argument">Path of the directory to look for projects (optional)</param>
+        private static async Task Main(string outputFilename = "third-party-notices.txt", string argument = null)
         {
-            var app = new CommandLineApplication(false);
-
-            app.HelpOption();
-            var optionOutputFilename = app.Option<string>("--output-filename <FILENAME>", "Output filename (default: third-party-notices.txt)",
-                CommandOptionType.SingleValue);
-
             MSBuildLocator.RegisterDefaults();
 
-            app.OnExecute(async () =>
+            var scanDirectory = argument ?? Directory.GetCurrentDirectory();
+
+            var projectFilePath = Directory.GetFiles(scanDirectory, "*.*", SearchOption.TopDirectoryOnly)
+                .SingleOrDefault(s => s.EndsWith(".csproj") || s.EndsWith(".fsproj"));
+            if (projectFilePath == null)
             {
-                var scanDirectory = app.RemainingArguments.SingleOrDefault() ?? Directory.GetCurrentDirectory();
-                var outputFilename = optionOutputFilename.ParsedValue ?? "third-party-notices.txt";
+                Console.WriteLine("No C# or F# project file found in the current directory.");
+                return;
+            }
 
-                var projectFilePath = Directory.GetFiles(scanDirectory, "*.*", SearchOption.TopDirectoryOnly)
-                    .SingleOrDefault(s => s.EndsWith(".csproj") || s.EndsWith(".fsproj"));
-                if (projectFilePath == null)
+            var project = new Project(projectFilePath);
+            project.SetProperty("DesignTimeBuild", "true");
+            Console.WriteLine("Resolving files...");
+
+            var stopwatch = new Stopwatch();
+
+            stopwatch.Start();
+
+            var licenseContents = new Dictionary<string, List<ResolvedFileInfo>>();
+            var resolvedFiles = project.ResolveFiles().ToList();
+
+            Console.WriteLine($"Resolved files count: {resolvedFiles.Count}");
+
+            var unresolvedFiles = new List<ResolvedFileInfo>();
+
+            foreach (var resolvedFileInfo in resolvedFiles)
+            {
+                Console.WriteLine($"Resolving license for {resolvedFileInfo.RelativeOutputPath}");
+                Console.WriteLine(resolvedFileInfo.NuSpec != null
+                    ? $"  Package: {resolvedFileInfo.NuSpec.Id}"
+                    : " NOT FOUND");
+
+                var licenseContent = await resolvedFileInfo.ResolveLicense();
+                if (licenseContent == null)
                 {
-                    Console.WriteLine("No C# or F# project file found in the current directory.");
-                    return;
+                    unresolvedFiles.Add(resolvedFileInfo);
+                    Console.ForegroundColor = ConsoleColor.DarkRed;
+                    Console.WriteLine(
+                        $"No license found for {resolvedFileInfo.RelativeOutputPath}. Source path: {resolvedFileInfo.SourcePath}. Verify this manually.");
+                    Console.ResetColor();
+                    continue;
                 }
 
-                var project = new Project(projectFilePath);
-                project.SetProperty("DesignTimeBuild", "true");
+                if (!licenseContents.ContainsKey(licenseContent))
+                    licenseContents[licenseContent] = new List<ResolvedFileInfo>();
 
-                Console.WriteLine("Resolving files...");
+                licenseContents[licenseContent].Add(resolvedFileInfo);
+            }
 
-                var stopwatch = new Stopwatch();
+            stopwatch.Stop();
 
-                stopwatch.Start();
+            Console.WriteLine($"Resolved {licenseContents.Count} licenses for {licenseContents.Values.Sum(v => v.Count)}/{resolvedFiles.Count} files in {stopwatch.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Unresolved files: {unresolvedFiles.Count}");
 
-                var licenseContents = new Dictionary<string, List<ResolvedFileInfo>>();
-                var resolvedFiles = project.ResolveFiles().ToList();
+            stopwatch.Start();
 
-                Console.WriteLine($"Resolved files count: {resolvedFiles.Count}");
+            var stringBuilder = new StringBuilder();
 
-                var unresolvedFiles = new List<ResolvedFileInfo>();
-
-                foreach (var resolvedFileInfo in resolvedFiles)
+            foreach (var (licenseContent, resolvedFileInfos) in licenseContents)
+            {
+                var longestNameLen = 0;
+                foreach (var resolvedFileInfo in resolvedFileInfos)
                 {
-                    Console.WriteLine($"Resolving license for {resolvedFileInfo.RelativeOutputPath}");
-                    Console.WriteLine(resolvedFileInfo.NuSpec != null
-                        ? $"  Package: {resolvedFileInfo.NuSpec.Id}"
-                        : " NOT FOUND");
+                    var strLen = resolvedFileInfo.RelativeOutputPath.Length;
+                    if (strLen > longestNameLen)
+                        longestNameLen = strLen;
 
-                    var licenseContent = await resolvedFileInfo.ResolveLicense();
-                    if (licenseContent == null)
-                    {
-                        unresolvedFiles.Add(resolvedFileInfo);
-                        Console.ForegroundColor = ConsoleColor.DarkRed;
-                        Console.WriteLine(
-                            $"No license found for {resolvedFileInfo.RelativeOutputPath}. Source path: {resolvedFileInfo.SourcePath}. Verify this manually.");
-                        Console.ResetColor();
-                        continue;
-                    }
-
-                    if (!licenseContents.ContainsKey(licenseContent))
-                        licenseContents[licenseContent] = new List<ResolvedFileInfo>();
-
-                    licenseContents[licenseContent].Add(resolvedFileInfo);
+                    stringBuilder.AppendLine(resolvedFileInfo.RelativeOutputPath);
                 }
 
+                stringBuilder.AppendLine(new string('-', longestNameLen));
 
-                stopwatch.Stop();
-                
-                
-                Console.WriteLine($"Resolved {licenseContents.Count} licenses for {licenseContents.Values.Sum(v => v.Count)}/{resolvedFiles.Count} files in {stopwatch.ElapsedMilliseconds}ms");
-                Console.WriteLine($"Unresolved files: {unresolvedFiles.Count}");
+                stringBuilder.AppendLine(licenseContent);
+                stringBuilder.AppendLine();
+            }
 
-                stopwatch.Start();
+            stopwatch.Stop();
 
-                var stringBuilder = new StringBuilder();
+            if (stringBuilder.Length > 0)
+            {
+                Console.WriteLine($"Writing to {outputFilename}...");
+                await File.WriteAllTextAsync(outputFilename, stringBuilder.ToString());
 
-                foreach (var kv in licenseContents)
-                {
-                    var licenseContent = kv.Key;
-                    var resolvedFileInfos = kv.Value;
-
-                    var longestNameLen = 0;
-                    foreach (var resolvedFileInfo in resolvedFileInfos)
-                    {
-                        var strLen = resolvedFileInfo.RelativeOutputPath.Length;
-                        if (strLen > longestNameLen)
-                            longestNameLen = strLen;
-
-                        stringBuilder.AppendLine(resolvedFileInfo.RelativeOutputPath);
-                    }
-
-                    stringBuilder.AppendLine(new string('-', longestNameLen));
-
-                    stringBuilder.AppendLine(licenseContent);
-                    stringBuilder.AppendLine();
-                }
-
-                stopwatch.Stop();
-
-                if (stringBuilder.Length > 0)
-                {
-                    Console.WriteLine($"Writing to {outputFilename}...");
-                    await File.WriteAllTextAsync(outputFilename, stringBuilder.ToString());
-
-                    Console.WriteLine($"Done in {stopwatch.ElapsedMilliseconds}ms");
-                }
-            });
-
-            app.Execute(args);
+                Console.WriteLine($"Done in {stopwatch.ElapsedMilliseconds}ms");
+            }
         }
     }
 }
