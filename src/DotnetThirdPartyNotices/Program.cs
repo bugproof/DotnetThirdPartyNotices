@@ -29,7 +29,6 @@ namespace DotnetThirdPartyNotices
 
         private static async Task Run(string outputFilename, string argument)
         {
-
             var scanDirectory = argument ?? Directory.GetCurrentDirectory();
 
             var projectFilePath = Directory.GetFiles(scanDirectory, "*.*", SearchOption.TopDirectoryOnly)

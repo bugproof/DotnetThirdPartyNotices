@@ -2,7 +2,7 @@
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
 
 namespace DotnetThirdPartyNotices
 {
@@ -25,18 +25,19 @@ namespace DotnetThirdPartyNotices
         public async Task<string> GetLicenseContentFromId(string licenseId)
         {
             var json = await _httpClient.GetStringAsync($"licenses/{licenseId}");
-            var jObject = JObject.Parse(json);
-            return jObject["body"].Value<string>();
+            var jsonDocument = JsonDocument.Parse(json);
+            return jsonDocument.RootElement.GetProperty("body").GetString();
         }
 
         public async Task<string> GetLicenseContentFromRepositoryPath(string repositoryPath)
         {
             repositoryPath = repositoryPath.TrimEnd('/');
             var json = await _httpClient.GetStringAsync($"repos{repositoryPath}/license");
-            var jObject = JObject.Parse(json);
+            var jsonDocument = JsonDocument.Parse(json);
 
-            var encoding = jObject["encoding"].Value<string>();
-            var content = jObject["content"].Value<string>();
+            var rootElement = jsonDocument.RootElement;
+            var encoding = rootElement.GetProperty("encoding").GetString();
+            var content = rootElement.GetProperty("content").GetString();
 
             if (encoding != "base64") return content;
 
