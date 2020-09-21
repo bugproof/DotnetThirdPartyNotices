@@ -8,6 +8,8 @@
 
 ## Installation
 
+[Configure dotnet CLI for use with github packages](https://docs.github.com/en/packages/using-github-packages-with-your-projects-ecosystem/configuring-dotnet-cli-for-use-with-github-packages)
+
 ```
 dotnet tool install -g dotnet-thirdpartynotices
 ```
