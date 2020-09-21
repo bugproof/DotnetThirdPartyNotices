@@ -1,8 +1,6 @@
 # dotnet-thirdpartynotices
 
-[![NuGet](https://img.shields.io/nuget/v/dotnet-thirdpartynotices.svg)](https://www.nuget.org/packages/dotnet-thirdpartynotices/) (currently outdated)
-
-You can download the latest builds [here](https://github.com/bugproof/DotnetThirdPartyNotices/actions) or build it yourself
+[![NuGet](https://img.shields.io/nuget/v/dotnet-thirdpartynotices.svg)](https://github.com/bugproof/DotnetThirdPartyNotices/packages/406726)
 
 ## Example of a generated file
 
