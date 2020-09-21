@@ -1,6 +1,6 @@
 # dotnet-thirdpartynotices
 
-[![NuGet](https://img.shields.io/nuget/v/dotnet-thirdpartynotices.svg)](https://github.com/bugproof/DotnetThirdPartyNotices/packages/406726)
+- [NuGet](https://github.com/bugproof/DotnetThirdPartyNotices/packages/406726)
 
 ## Example of a generated file
 
